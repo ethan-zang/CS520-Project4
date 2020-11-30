@@ -41,7 +41,7 @@ def retrieve_pixels() -> Tuple[np.array, np.array]:
     return rgb, gray
 
 
-def cluster_pixels(rgb: np.array) -> Tuple[np.array, Dict[str, np.array]]:
+def cluster_pixels(rgb: np.array) -> Tuple[np.array, np.array]:
     """
     Obtain the 5 representative colors of the image through k-means clustering
     :param rgb: np.array of colored image pixels
@@ -77,13 +77,12 @@ def cluster_pixels(rgb: np.array) -> Tuple[np.array, Dict[str, np.array]]:
 
     # Plot centroids and pixels according to color they correspond to
     ax = plt.axes(projection='3d')
-    # ax.scatter3D(flattened_rgb[:, 0], flattened_rgb[:, 1], flattened_rgb[:, 2], alpha=0.1)
     for i in range(len(centroids)):
         ax.scatter3D(color_dict['color_' + str(i)][:, 0], color_dict['color_' + str(i)][:, 1], color_dict['color_' + str(i)][:, 2], alpha=0.1, color=centroids[i]/np.array([[255.0, 255.0, 255.0]]))
     ax.scatter3D(centroids[:, 0], centroids[:, 1], centroids[:, 2], color='black')
     plt.show()
 
-    return centroids, color_dict
+    return centroids.astype('uint8'), pixel_color_array
 
 
 def assign_pixels_to_color(centroids: np.array, flattened_rgb: np.array) -> np.array:
@@ -111,6 +110,7 @@ def assign_pixels_to_color(centroids: np.array, flattened_rgb: np.array) -> np.a
                 min_centroid_i = i
                 min_distance = curr_distance
 
+        # Assign the pixel to a color
         pixel_colors[index] = min_centroid_i
         index += 1
 
@@ -204,12 +204,24 @@ def calculate_distance(curr_pixel: np.array, centroid: np.array) -> float:
 def main():
     print('hello world')
     rgb, gray = retrieve_pixels()
+
+    representative_colors, pixel_color_array = cluster_pixels(rgb)
+
+    num_rows = rgb.shape[0]
+    num_cols = rgb.shape[1]
+    new_rgb = np.zeros(shape=(num_rows, num_cols, rgb.shape[2]))
+
+    # Fill in left half of new_rgb with new colors
+    for i in range(num_rows):
+        for j in range(0, int(num_cols/2)):
+            color_index = int(pixel_color_array[(i * num_cols + j)][3])
+            print(color_index)
+            new_rgb[i][j] = representative_colors[color_index]
+
+    np.set_printoptions(threshold=5)
     print(rgb)
-    print(rgb.shape)
-
-    representative_colors = cluster_pixels(rgb)
-
-    plt.imshow(rgb)
+    print(new_rgb)
+    plt.imshow(new_rgb.astype('uint8'))
     plt.show()
 
     # print(gray)
