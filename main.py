@@ -60,7 +60,7 @@ def cluster_pixels(rgb: np.array) -> Tuple[np.array, np.array]:
     print("initial centroids", centroids)
 
     # Recalculate centroid 10 times
-    for i in range(3):
+    for i in range(2):
         centroids = calculate_new_centroids(centroids, flattened_rgb)
         print("Iteration: ", i)
         print(centroids)
@@ -222,9 +222,8 @@ def calculate_gray_score(gray: np.array, i: int, j: int) -> int:
             #     score += 5*int(gray[i + x][j + y])
             #
             # else:
-            #     score += int(gray[i + x][j + y])
-
-    return score
+            #     score += int(gray[i + x][j + y]
+    return int(score/9)
 
 def get_similar_gray_patches(gray: np.array, left_gray_scores_dict: Dict[int, List[Tuple[int, int]]], right_i: int, right_j: int) -> List[Tuple[int, Tuple[int, int]]]:
     """
@@ -398,10 +397,127 @@ def color_right_side(gray: np.array, new_rgb: np.array, representative_colors: n
     return new_rgb
 
 
+def run_basic_agent(new_rgb: np.array, gray: np.array, representative_colors: np.array, pixel_color_array: np.array):
+
+    # Color right hand side
+    newest_rgb = color_right_side(gray, new_rgb, representative_colors, pixel_color_array)
+    plt.imshow(newest_rgb.astype('uint8'))
+    plt.show()
+
+
+def run_improved_agent(new_rgb: np.array, gray: np.array, representative_colors: np.array, pixel_color_array: np.array):
+
+    red_equation, green_equation, blue_equation = generate_regression_equations(new_rgb, gray, representative_colors, pixel_color_array)
+
+    num_rows = new_rgb.shape[0]
+    num_cols = new_rgb.shape[1]
+
+    # Fill in right half of new_rgb with new colors, ignoring edges
+    for i in range(1, num_rows - 1):
+        for j in range(int(num_cols / 2), num_cols - 1):
+            gray_pixel_value = gray[i][j]
+
+            new_red_value = int(red_equation[0] * gray_pixel_value + red_equation[1])
+            new_green_value = int(green_equation[0] * gray_pixel_value + green_equation[1])
+            new_blue_value = int(blue_equation[0] * gray_pixel_value + blue_equation[1])
+
+            # Map to the closest representative color
+            closest_color = map_to_closest_color(new_red_value, new_green_value, new_blue_value, representative_colors)
+            new_rgb[i][j] = closest_color
+
+    plt.imshow(new_rgb.astype('uint8'))
+    plt.show()
+
+
+def map_to_closest_color(red: int, green: int, blue: int, representative_colors: np.array):
+
+    min_distance = 100000000
+    closest_color = None
+
+    for color in representative_colors:
+
+        # Temporarily find closest distance to green
+        red_difference = red - color[0]
+        green_difference = green - color[1]
+        blue_difference = blue - color[2]
+
+        curr_distance = (red_difference ** 2 + green_difference ** 2 + blue_difference ** 2) ** 0.5
+
+        if curr_distance < min_distance:
+            min_distance = curr_distance
+            closest_color = color
+
+    return closest_color
+
+
+
+
+
+def generate_regression_equations(rgb: np.array, gray: np.array, representative_colors: np.array, pixel_color_array: np.array):
+
+    wr = 1
+    wg = 1
+    wb = 1
+    br = 0
+    bg = 0
+    bb = 0
+    alpha = 0.00003
+
+    pixels_counted = 0
+
+    # Iterate through left half of gray
+    for i in range(1, gray.shape[0]-1):
+        for j in range(1, int(gray.shape[1]/2) - 1):
+            # color_pixel = rgb[i][j]
+            gray_pixel_value = gray[i][j]
+
+            # Calculate y hat
+            y_hat_r = wr * gray_pixel_value + br
+            y_hat_g = wg * gray_pixel_value + bg
+            y_hat_b = wb * gray_pixel_value + bb
+
+            color_pixel = representative_colors[int(pixel_color_array[i * j][3])]
+
+            # Calculate loss
+            loss_r = (y_hat_r - color_pixel[0]) ** 2
+            loss_g = (y_hat_g - color_pixel[1]) ** 2
+            loss_b = (y_hat_b - color_pixel[2]) ** 2
+
+            # Calculate new weights
+            wr = wr - alpha * (y_hat_r - color_pixel[0]) * gray_pixel_value
+            wg = wg - alpha * (y_hat_g - color_pixel[1]) * gray_pixel_value
+            wb = wb - alpha * (y_hat_b - color_pixel[2]) * gray_pixel_value
+
+            # Calculate new b values
+            br = br - alpha * (y_hat_r - color_pixel[0])
+            bg = bg - alpha * (y_hat_g - color_pixel[1])
+            bb = bb - alpha * (y_hat_b - color_pixel[2])
+
+            red_equation = 'y = ' + str(wr) + 'x + ' + str(br)
+            green_equation = 'y = ' + str(wg) + 'x + ' + str(bg)
+            blue_equation = 'y = ' + str(wb) + 'x + ' + str(bb)
+
+            # print('Cell: ', (i, j))
+            # print('Pixel Color: ', color_pixel)
+            # print('Red Loss: ', loss_r)
+            # print('Green Loss: ', loss_g)
+            # print('Blue Loss: ', loss_b)
+            # print('Red Equation: ', red_equation)
+            # print('Green Equation: ', green_equation)
+            # print('Blue Equation: ', blue_equation)
+            # print()
+
+            pixels_counted += 1
+
+            if (max(loss_r, loss_b, loss_g) < 1 and pixels_counted > gray.shape[0]*gray.shape[1]*0.4):
+                break
+
+    return (wr, br), (wg, bg), (wb, bb)
+
+
 def main():
     print('hello world')
     rgb, gray = retrieve_pixels()
-
     representative_colors, pixel_color_array = cluster_pixels(rgb)
 
     num_rows = rgb.shape[0]
@@ -410,7 +526,7 @@ def main():
 
     # Fill in left half of new_rgb with new colors
     for i in range(num_rows):
-        for j in range(0, int(num_cols/2)):
+        for j in range(0, int(num_cols / 2)):
             color_index = int(pixel_color_array[(i * num_cols + j)][3])
             # print(color_index)
             new_rgb[i][j] = representative_colors[color_index]
@@ -421,10 +537,8 @@ def main():
     plt.imshow(new_rgb.astype('uint8'))
     plt.show()
 
-    # Color right hand side
-    newest_rgb = color_right_side(gray, new_rgb, representative_colors, pixel_color_array)
-    plt.imshow(newest_rgb.astype('uint8'))
-    plt.show()
+    # run_basic_agent(new_rgb, gray, representative_colors, pixel_color_array)
+    run_improved_agent(rgb, gray, representative_colors, pixel_color_array)
 
     # print(gray)
     # print(gray.shape)
