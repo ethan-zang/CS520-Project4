@@ -60,7 +60,7 @@ def cluster_pixels(rgb: np.array) -> Tuple[np.array, np.array]:
     print("initial centroids", centroids)
 
     # Recalculate centroid 10 times
-    for i in range(2):
+    for i in range(10):
         centroids = calculate_new_centroids(centroids, flattened_rgb)
         print("Iteration: ", i)
         print(centroids)
@@ -336,12 +336,12 @@ def color_right_side(gray: np.array, new_rgb: np.array, representative_colors: n
     # similar_gray_patch_queue = None
 
     left_gray_scores_dict = get_left_gray_scores(gray)
-    print(left_gray_scores_dict)
+    # print(left_gray_scores_dict)
 
     # Fill in right half of new_rgb with new colors, ignoring edges
     for i in range(1, num_rows-1):
         for j in range(int(num_cols / 2), num_cols-1):
-
+            # print("coloring pixel", i , j)
             # Retrieve most 6 most similar patch centers and their similarity scores
             similar_gray_patches = get_similar_gray_patches(gray, left_gray_scores_dict, i, j)
             # print("retrieving 6 patches")
@@ -403,14 +403,15 @@ def run_basic_agent(new_rgb: np.array, gray: np.array, representative_colors: np
     newest_rgb = color_right_side(gray, new_rgb, representative_colors, pixel_color_array)
     plt.imshow(newest_rgb.astype('uint8'))
     plt.show()
+    print("Done with basic")
 
 
-def run_improved_agent(new_rgb: np.array, gray: np.array, representative_colors: np.array, pixel_color_array: np.array):
+def run_improved_agent(rgb: np.array, gray: np.array, representative_colors, pixel_color_array):
 
-    red_equation, green_equation, blue_equation = generate_regression_equations(new_rgb, gray, representative_colors, pixel_color_array)
+    red_equation, green_equation, blue_equation = generate_regression_equations(rgb, gray)
 
-    num_rows = new_rgb.shape[0]
-    num_cols = new_rgb.shape[1]
+    num_rows = rgb.shape[0]
+    num_cols = rgb.shape[1]
 
     # Fill in right half of new_rgb with new colors, ignoring edges
     for i in range(1, num_rows - 1):
@@ -423,9 +424,10 @@ def run_improved_agent(new_rgb: np.array, gray: np.array, representative_colors:
 
             # Map to the closest representative color
             closest_color = map_to_closest_color(new_red_value, new_green_value, new_blue_value, representative_colors)
-            new_rgb[i][j] = closest_color
+            rgb[i][j] = closest_color
+            # rgb[i][j] = [new_red_value, new_green_value, new_blue_value]
 
-    plt.imshow(new_rgb.astype('uint8'))
+    plt.imshow(rgb.astype('uint8'))
     plt.show()
 
 
@@ -441,19 +443,23 @@ def map_to_closest_color(red: int, green: int, blue: int, representative_colors:
         green_difference = green - color[1]
         blue_difference = blue - color[2]
 
+
         curr_distance = (red_difference ** 2 + green_difference ** 2 + blue_difference ** 2) ** 0.5
+        # curr_distance = (1/.21) * red_difference + (1/.72) * green_difference + (1/.07) * blue_difference
 
         if curr_distance < min_distance:
             min_distance = curr_distance
             closest_color = color
 
+    print("Actual color", red, green, blue)
+    print("Representative color", closest_color)
     return closest_color
 
 
 
 
 
-def generate_regression_equations(rgb: np.array, gray: np.array, representative_colors: np.array, pixel_color_array: np.array):
+def generate_regression_equations(rgb: np.array, gray: np.array):
 
     wr = 1
     wg = 1
@@ -476,7 +482,8 @@ def generate_regression_equations(rgb: np.array, gray: np.array, representative_
             y_hat_g = wg * gray_pixel_value + bg
             y_hat_b = wb * gray_pixel_value + bb
 
-            color_pixel = representative_colors[int(pixel_color_array[i * j][3])]
+            # color_pixel = representative_colors[int(pixel_color_array[i * j][3])]
+            color_pixel = rgb[i][j]
 
             # Calculate loss
             loss_r = (y_hat_r - color_pixel[0]) ** 2
@@ -497,20 +504,20 @@ def generate_regression_equations(rgb: np.array, gray: np.array, representative_
             green_equation = 'y = ' + str(wg) + 'x + ' + str(bg)
             blue_equation = 'y = ' + str(wb) + 'x + ' + str(bb)
 
-            # print('Cell: ', (i, j))
-            # print('Pixel Color: ', color_pixel)
-            # print('Red Loss: ', loss_r)
-            # print('Green Loss: ', loss_g)
-            # print('Blue Loss: ', loss_b)
-            # print('Red Equation: ', red_equation)
-            # print('Green Equation: ', green_equation)
-            # print('Blue Equation: ', blue_equation)
-            # print()
+            print('Cell: ', (i, j))
+            print('Pixel Color: ', color_pixel)
+            print('Red Loss: ', loss_r)
+            print('Green Loss: ', loss_g)
+            print('Blue Loss: ', loss_b)
+            print('Red Equation: ', red_equation)
+            print('Green Equation: ', green_equation)
+            print('Blue Equation: ', blue_equation)
+            print()
 
             pixels_counted += 1
 
-            if (max(loss_r, loss_b, loss_g) < 1 and pixels_counted > gray.shape[0]*gray.shape[1]*0.4):
-                break
+            # if (max(loss_r, loss_b, loss_g) < 1 and pixels_counted > gray.shape[0]*gray.shape[1]*0.4):
+            #     break
 
     return (wr, br), (wg, bg), (wb, bb)
 
@@ -519,6 +526,9 @@ def main():
     print('hello world')
     rgb, gray = retrieve_pixels()
     representative_colors, pixel_color_array = cluster_pixels(rgb)
+
+
+    print("Representative colors:", representative_colors)
 
     num_rows = rgb.shape[0]
     num_cols = rgb.shape[1]
