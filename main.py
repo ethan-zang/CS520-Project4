@@ -22,7 +22,7 @@ def retrieve_pixels() -> Tuple[np.array, np.array]:
 
     # Get file path to image
     root_dir = os.getcwd()
-    file_path = os.path.join(root_dir, 'flag.jpg')
+    file_path = os.path.join(root_dir, 'image.jpg')
 
     # Open image
     im = Image.open(file_path)
@@ -50,7 +50,7 @@ def cluster_pixels(rgb: np.array) -> Tuple[np.array, np.array]:
     """
 
     # Turn into 2D numpy array
-    flattened_rgb = rgb.reshape(rgb.shape[0]*rgb.shape[1], rgb.shape[2])
+    flattened_rgb = rgb.reshape(rgb.shape[0] * rgb.shape[1], rgb.shape[2])
 
     # df = pd.DataFrame(data=flattened_rgb)
     # print(df)
@@ -60,7 +60,7 @@ def cluster_pixels(rgb: np.array) -> Tuple[np.array, np.array]:
     print("initial centroids", centroids)
 
     # Recalculate centroid 10 times
-    for i in range(10):
+    for i in range(5):
         centroids = calculate_new_centroids(centroids, flattened_rgb)
         print("Iteration: ", i)
         print(centroids)
@@ -79,7 +79,9 @@ def cluster_pixels(rgb: np.array) -> Tuple[np.array, np.array]:
     # Plot centroids and pixels according to color they correspond to
     ax = plt.axes(projection='3d')
     for i in range(len(centroids)):
-        ax.scatter3D(color_dict['color_' + str(i)][:, 0], color_dict['color_' + str(i)][:, 1], color_dict['color_' + str(i)][:, 2], alpha=0.1, color=centroids[i]/np.array([[255.0, 255.0, 255.0]]))
+        ax.scatter3D(color_dict['color_' + str(i)][:, 0], color_dict['color_' + str(i)][:, 1],
+                     color_dict['color_' + str(i)][:, 2], alpha=0.1,
+                     color=centroids[i] / np.array([[255.0, 255.0, 255.0]]))
     ax.scatter3D(centroids[:, 0], centroids[:, 1], centroids[:, 2], color='black')
     plt.show()
 
@@ -149,13 +151,14 @@ def calculate_new_centroids(centroids: np.array, flattened_rgb: np.array) -> np.
         new_centroids[min_centroid_i] += pixel
         element_count[min_centroid_i] += 1
 
-    print("centroid sums before dividing", new_centroids)
-    print("element count: ", element_count)
+    # print("centroid sums before dividing", new_centroids)
+    # print("element count: ", element_count)
 
     # Divide the sum of the pixel values for each pixel for each centroid by the number of pixels for that centroid
     for i in range(len(centroids)):
         new_centroids[i] /= element_count[i]
 
+    print("centroid rgb values:", new_centroids)
     return new_centroids.astype(int)
 
 
@@ -195,7 +198,7 @@ def calculate_distance(curr_pixel: np.array, centroid: np.array) -> float:
     distance = 0
 
     for i in range(3):
-        distance += (int(curr_pixel[i]) - int(centroid[i]))**2
+        distance += (int(curr_pixel[i]) - int(centroid[i])) ** 2
 
     distance = math.sqrt(distance)
 
@@ -214,7 +217,6 @@ def calculate_gray_score(gray: np.array, i: int, j: int) -> int:
 
     for x in range(-1, 2):
         for y in range(-1, 2):
-
             score += int(gray[i + x][j + y])
 
             # Prioritize center cell
@@ -223,9 +225,11 @@ def calculate_gray_score(gray: np.array, i: int, j: int) -> int:
             #
             # else:
             #     score += int(gray[i + x][j + y]
-    return int(score/9)
+    return int(score / 9)
 
-def get_similar_gray_patches(gray: np.array, left_gray_scores_dict: Dict[int, List[Tuple[int, int]]], right_i: int, right_j: int) -> List[Tuple[int, Tuple[int, int]]]:
+
+def get_similar_gray_patches(gray: np.array, left_gray_scores_dict: Dict[int, List[Tuple[int, int]]], right_i: int,
+                             right_j: int) -> List[Tuple[int, Tuple[int, int]]]:
     """
     Retrieve the 6 most similar gray patches on the left hand side
     :param gray: array of gray pixels
@@ -256,19 +260,19 @@ def get_similar_gray_patches(gray: np.array, left_gray_scores_dict: Dict[int, Li
         similar_gray_patch_up_coordinates = left_gray_scores_dict.get(new_score_key_up)
         if similar_gray_patch_up_coordinates is None:
             similar_gray_patch_up_coordinates = []
-        similar_gray_patches_up = [(new_score_key_up-right_gray_score, x) for x in similar_gray_patch_up_coordinates]
+        similar_gray_patches_up = [(new_score_key_up - right_gray_score, x) for x in similar_gray_patch_up_coordinates]
         similar_gray_patches.extend(similar_gray_patches_up)
 
         # Go one key down
         similar_gray_patch_down_coordinates = left_gray_scores_dict.get(new_score_key_down)
         if similar_gray_patch_down_coordinates is None:
             similar_gray_patch_down_coordinates = []
-        similar_gray_patches_down = [(right_gray_score - new_score_key_down, x) for x in similar_gray_patch_down_coordinates]
+        similar_gray_patches_down = [(right_gray_score - new_score_key_down, x) for x in
+                                     similar_gray_patch_down_coordinates]
         similar_gray_patches.extend(similar_gray_patches_down)
         # print("papa")
 
     return similar_gray_patches[:6]
-
 
     # Iterate through left half of gray, skipping edges
     # for i in range(1, gray.shape[0]-1):
@@ -304,8 +308,8 @@ def get_left_gray_scores(gray: np.array) -> Dict[int, List[Tuple[int, int]]]:
     left_gray_scores_dict = {}
 
     # Iterate through left half of gray, skipping edges
-    for i in range(1, gray.shape[0]-1):
-        for j in range(1, int(gray.shape[1]/2) - 1):
+    for i in range(1, gray.shape[0] - 1):
+        for j in range(1, int(gray.shape[1] / 2) - 1):
             left_gray_score = calculate_gray_score(gray, i, j)
 
             if left_gray_score in left_gray_scores_dict:
@@ -318,8 +322,8 @@ def get_left_gray_scores(gray: np.array) -> Dict[int, List[Tuple[int, int]]]:
     return left_gray_scores_dict
 
 
-
-def color_right_side(gray: np.array, new_rgb: np.array, representative_colors: np.array, pixel_color_array: np.array) -> np.array:
+def color_right_side(gray: np.array, new_rgb: np.array, representative_colors: np.array,
+                     pixel_color_array: np.array) -> np.array:
     """
     Color the right side of the grayscale image
     :param gray: array of gray pixels
@@ -339,8 +343,8 @@ def color_right_side(gray: np.array, new_rgb: np.array, representative_colors: n
     # print(left_gray_scores_dict)
 
     # Fill in right half of new_rgb with new colors, ignoring edges
-    for i in range(1, num_rows-1):
-        for j in range(int(num_cols / 2), num_cols-1):
+    for i in range(1, num_rows - 1):
+        for j in range(int(num_cols / 2), num_cols - 1):
             # print("coloring pixel", i , j)
             # Retrieve most 6 most similar patch centers and their similarity scores
             similar_gray_patches = get_similar_gray_patches(gray, left_gray_scores_dict, i, j)
@@ -398,7 +402,6 @@ def color_right_side(gray: np.array, new_rgb: np.array, representative_colors: n
 
 
 def run_basic_agent(new_rgb: np.array, gray: np.array, representative_colors: np.array, pixel_color_array: np.array):
-
     # Color right hand side
     newest_rgb = color_right_side(gray, new_rgb, representative_colors, pixel_color_array)
     plt.imshow(newest_rgb.astype('uint8'))
@@ -407,7 +410,6 @@ def run_basic_agent(new_rgb: np.array, gray: np.array, representative_colors: np
 
 
 def run_improved_agent(rgb: np.array, gray: np.array, representative_colors, pixel_color_array):
-
     red_equation, green_equation, blue_equation = generate_regression_equations(rgb, gray)
 
     num_rows = rgb.shape[0]
@@ -432,35 +434,31 @@ def run_improved_agent(rgb: np.array, gray: np.array, representative_colors, pix
 
 
 def map_to_closest_color(red: int, green: int, blue: int, representative_colors: np.array):
-
     min_distance = 100000000
     closest_color = None
+    dist = []
 
     for color in representative_colors:
 
         # Temporarily find closest distance to green
-        red_difference = red - color[0]
-        green_difference = green - color[1]
-        blue_difference = blue - color[2]
+        # red_difference = abs(red - color[0])
+        green_difference = abs(green - color[1])
+        # blue_difference = abs(blue - color[2])
 
+        curr_distance = green_difference
 
-        curr_distance = (red_difference ** 2 + green_difference ** 2 + blue_difference ** 2) ** 0.5
-        # curr_distance = (1/.21) * red_difference + (1/.72) * green_difference + (1/.07) * blue_difference
-
+        dist.append(curr_distance)
         if curr_distance < min_distance:
             min_distance = curr_distance
             closest_color = color
 
     print("Actual color", red, green, blue)
     print("Representative color", closest_color)
+    print(dist)
     return closest_color
 
 
-
-
-
 def generate_regression_equations(rgb: np.array, gray: np.array):
-
     wr = 1
     wg = 1
     wb = 1
@@ -472,8 +470,8 @@ def generate_regression_equations(rgb: np.array, gray: np.array):
     pixels_counted = 0
 
     # Iterate through left half of gray
-    for i in range(1, gray.shape[0]-1):
-        for j in range(1, int(gray.shape[1]/2) - 1):
+    for i in range(1, gray.shape[0] - 1):
+        for j in range(1, int(gray.shape[1] / 2) - 1):
             # color_pixel = rgb[i][j]
             gray_pixel_value = gray[i][j]
 
@@ -526,7 +524,6 @@ def main():
     print('hello world')
     rgb, gray = retrieve_pixels()
     representative_colors, pixel_color_array = cluster_pixels(rgb)
-
 
     print("Representative colors:", representative_colors)
 
