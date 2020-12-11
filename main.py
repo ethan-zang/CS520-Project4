@@ -537,15 +537,16 @@ def run_advanced_agent(representative_color_labels: np.array, rgb: np.array, rep
 
     train_grayscale = train_grayscale[..., newaxis]
     test_grayscale = test_grayscale[..., newaxis]
+    train_rgb_labels = train_rgb_labels[..., newaxis]
+    test_rgb_labels = test_rgb_labels[..., newaxis]
 
     model = models.Sequential()
-    model.add(layers.Conv1D(2, 3, 2, activation='relu', input_shape=(train_grayscale.shape[1], train_grayscale.shape[2])))
-    model.add(layers.Conv1D(64, 3, 2, activation='relu'))
-    model.add(layers.Conv1D(64, 3, 2, activation='relu'))
-
-    model.add(layers.Flatten())
-    model.add(layers.Dense(64, activation='relu'))
-    model.add(layers.Dense(400))
+    model.add(layers.Conv1D(1, 1, 1, activation='relu', input_shape=(1, 1)))
+    # model.add(layers.Conv1D(64, 1, 2, activation='relu'))
+    #
+    # model.add(layers.Flatten())
+    # model.add(layers.Dense(64, activation='relu'))
+    # model.add(layers.Dense(400))
 
     print(train_grayscale.shape)
     print(train_rgb_labels.shape)
@@ -558,7 +559,7 @@ def run_advanced_agent(representative_color_labels: np.array, rgb: np.array, rep
                   metrics=['accuracy'])
 
     # Fit model
-    history = model.fit(train_grayscale, train_rgb_labels, epochs=50,
+    history = model.fit(train_grayscale, train_rgb_labels, epochs=1000,
                         validation_data=(test_grayscale, test_rgb_labels))
 
     # Evaluate model
