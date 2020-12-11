@@ -4,9 +4,13 @@ import numpy as np
 import os
 import random
 import sys
+import tensorflow as tf
 import math
 
+from numpy import newaxis
 from PIL import Image
+from sklearn.model_selection import train_test_split
+from tensorflow.keras import datasets, layers, models
 from typing import Tuple, Dict
 
 import matplotlib.pyplot as plt
@@ -60,7 +64,7 @@ def cluster_pixels(rgb: np.array) -> Tuple[np.array, np.array]:
     print("initial centroids", centroids)
 
     # Recalculate centroid 10 times
-    for i in range(5):
+    for i in range(1):
         centroids = calculate_new_centroids(centroids, flattened_rgb)
         print("Iteration: ", i)
         print(centroids)
@@ -132,12 +136,12 @@ def calculate_new_centroids(centroids: np.array, flattened_rgb: np.array) -> np.
         newly calculated pixels, np.array of shape (5,3)
     """
 
-    new_centroids = np.empty(shape=(len(centroids), 3))
+    new_centroids = np.zeros(shape=(len(centroids), 3))
     element_count = np.zeros(shape=len(centroids))
 
     for pixel in flattened_rgb:
 
-        min_distance = 255 * math.sqrt(3) + 1
+        min_distance = 1000000
         min_centroid_i = 0
 
         # Determine centroid that pixel is closest to
@@ -151,8 +155,8 @@ def calculate_new_centroids(centroids: np.array, flattened_rgb: np.array) -> np.
         new_centroids[min_centroid_i] += pixel
         element_count[min_centroid_i] += 1
 
-    # print("centroid sums before dividing", new_centroids)
-    # print("element count: ", element_count)
+    print("centroid sums before dividing", new_centroids)
+    print("element count: ", element_count)
 
     # Divide the sum of the pixel values for each pixel for each centroid by the number of pixels for that centroid
     for i in range(len(centroids)):
@@ -441,20 +445,20 @@ def map_to_closest_color(red: int, green: int, blue: int, representative_colors:
     for color in representative_colors:
 
         # Temporarily find closest distance to green
-        # red_difference = abs(red - color[0])
+        red_difference = abs(red - color[0])
         green_difference = abs(green - color[1])
-        # blue_difference = abs(blue - color[2])
+        blue_difference = abs(blue - color[2])
 
-        curr_distance = green_difference
+        curr_distance = .21 * red_difference + .72 * green_difference + .07 * blue_difference
 
         dist.append(curr_distance)
         if curr_distance < min_distance:
             min_distance = curr_distance
             closest_color = color
 
-    print("Actual color", red, green, blue)
-    print("Representative color", closest_color)
-    print(dist)
+    # print("Actual color", red, green, blue)
+    # print("Representative color", closest_color)
+    # print(dist)
     return closest_color
 
 
@@ -472,6 +476,10 @@ def generate_regression_equations(rgb: np.array, gray: np.array):
     # Iterate through left half of gray
     for i in range(1, gray.shape[0] - 1):
         for j in range(1, int(gray.shape[1] / 2) - 1):
+            probability = random.uniform(0, 1)
+            if probability > 0.8:
+                continue
+
             # color_pixel = rgb[i][j]
             gray_pixel_value = gray[i][j]
 
@@ -502,15 +510,15 @@ def generate_regression_equations(rgb: np.array, gray: np.array):
             green_equation = 'y = ' + str(wg) + 'x + ' + str(bg)
             blue_equation = 'y = ' + str(wb) + 'x + ' + str(bb)
 
-            print('Cell: ', (i, j))
-            print('Pixel Color: ', color_pixel)
-            print('Red Loss: ', loss_r)
-            print('Green Loss: ', loss_g)
-            print('Blue Loss: ', loss_b)
-            print('Red Equation: ', red_equation)
-            print('Green Equation: ', green_equation)
-            print('Blue Equation: ', blue_equation)
-            print()
+            # print('Cell: ', (i, j))
+            # print('Pixel Color: ', color_pixel)
+            # print('Red Loss: ', loss_r)
+            # print('Green Loss: ', loss_g)
+            # print('Blue Loss: ', loss_b)
+            # print('Red Equation: ', red_equation)
+            # print('Green Equation: ', green_equation)
+            # print('Blue Equation: ', blue_equation)
+            # print()
 
             pixels_counted += 1
 
@@ -519,17 +527,60 @@ def generate_regression_equations(rgb: np.array, gray: np.array):
 
     return (wr, br), (wg, bg), (wb, bb)
 
+def run_advanced_agent(representative_color_labels: np.array, rgb: np.array, representative_colors):
+    train_grayscale, test_grayscale, train_rgb_labels, test_rgb_labels = train_test_split(rgb, representative_color_labels, test_size=0.2,
+                                                                            random_state=1)
+    train_grayscale = np.array(train_grayscale)
+    train_rgb_labels = np.array(train_rgb_labels)
+    test_grayscale = np.array(test_grayscale)
+    test_rgb_labels = np.array(test_rgb_labels)
+
+    train_grayscale = train_grayscale[..., newaxis]
+    test_grayscale = test_grayscale[..., newaxis]
+
+    model = models.Sequential()
+    model.add(layers.Conv1D(2, 3, 2, activation='relu', input_shape=(train_grayscale.shape[1], train_grayscale.shape[2])))
+    model.add(layers.Conv1D(64, 3, 2, activation='relu'))
+    model.add(layers.Conv1D(64, 3, 2, activation='relu'))
+
+    model.add(layers.Flatten())
+    model.add(layers.Dense(64, activation='relu'))
+    model.add(layers.Dense(400))
+
+    print(train_grayscale.shape)
+    print(train_rgb_labels.shape)
+    print(test_grayscale.shape)
+    print(test_rgb_labels.shape)
+
+    # Compile keras model
+    model.compile(optimizer=tf.keras.optimizers.SGD(learning_rate=0.00003),
+                  loss=tf.keras.losses.CategoricalCrossentropy(),
+                  metrics=['accuracy'])
+
+    # Fit model
+    history = model.fit(train_grayscale, train_rgb_labels, epochs=50,
+                        validation_data=(test_grayscale, test_rgb_labels))
+
+    # Evaluate model
+    test_loss, test_acc = model.evaluate(test_grayscale, test_rgb_labels, verbose=2)
+
+    # Save model
+    # os.mkdir('model')
+    # model.save('model/trained_cnn_model', overwrite=True)
+
 
 def main():
     print('hello world')
     rgb, gray = retrieve_pixels()
     representative_colors, pixel_color_array = cluster_pixels(rgb)
+    # print(rgb.shape)
 
     print("Representative colors:", representative_colors)
 
     num_rows = rgb.shape[0]
     num_cols = rgb.shape[1]
     new_rgb = np.zeros(shape=(num_rows, num_cols, rgb.shape[2]))
+    new_rgb_labels = np.zeros(shape=(num_rows, num_cols))
 
     # Fill in left half of new_rgb with new colors
     for i in range(num_rows):
@@ -537,15 +588,21 @@ def main():
             color_index = int(pixel_color_array[(i * num_cols + j)][3])
             # print(color_index)
             new_rgb[i][j] = representative_colors[color_index]
+            new_rgb_labels[i][j] = color_index
 
     np.set_printoptions(threshold=5)
-    print(rgb)
-    print(new_rgb)
+    # print(rgb)
+    # print(new_rgb)
     plt.imshow(new_rgb.astype('uint8'))
     plt.show()
 
     # run_basic_agent(new_rgb, gray, representative_colors, pixel_color_array)
-    run_improved_agent(rgb, gray, representative_colors, pixel_color_array)
+    # run_improved_agent(rgb, gray, representative_colors, pixel_color_array)
+
+    # left_half_gray = np.delete(gray, [int(num_cols / 2), num_cols-1], axis=1)
+    left_half_gray = np.delete(gray, np.s_[int(num_cols / 2): num_cols], axis=1)
+    left_half_new_rgb_labels = np.delete(new_rgb_labels, np.s_[int(num_cols / 2): num_cols], axis=1)
+    run_advanced_agent(left_half_new_rgb_labels, left_half_gray, representative_colors)
 
     # print(gray)
     # print(gray.shape)
