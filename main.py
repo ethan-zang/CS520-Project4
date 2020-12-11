@@ -12,6 +12,7 @@ from PIL import Image
 from sklearn.model_selection import train_test_split
 from tensorflow.keras import datasets, layers, models
 from typing import Tuple, Dict
+from keras.utils import np_utils
 
 import matplotlib.pyplot as plt
 from queue import PriorityQueue, Queue
@@ -64,7 +65,7 @@ def cluster_pixels(rgb: np.array) -> Tuple[np.array, np.array]:
     print("initial centroids", centroids)
 
     # Recalculate centroid 10 times
-    for i in range(1):
+    for i in range(5):
         centroids = calculate_new_centroids(centroids, flattened_rgb)
         print("Iteration: ", i)
         print(centroids)
@@ -530,30 +531,47 @@ def generate_regression_equations(rgb: np.array, gray: np.array):
 def run_advanced_agent(representative_color_labels: np.array, rgb: np.array, representative_colors):
     train_grayscale, test_grayscale, train_rgb_labels, test_rgb_labels = train_test_split(rgb, representative_color_labels, test_size=0.2,
                                                                             random_state=1)
-    train_grayscale = np.array(train_grayscale)
-    train_rgb_labels = np.array(train_rgb_labels)
-    test_grayscale = np.array(test_grayscale)
-    test_rgb_labels = np.array(test_rgb_labels)
+    train_grayscale = np.array(train_grayscale).flatten()
+    train_rgb_labels = np.array(train_rgb_labels).flatten()
+    test_grayscale = np.array(test_grayscale).flatten()
+    test_rgb_labels = np.array(test_rgb_labels).flatten()
 
-    train_grayscale = train_grayscale[..., newaxis]
-    test_grayscale = test_grayscale[..., newaxis]
-
-    model = models.Sequential()
-    model.add(layers.Conv1D(2, 3, 2, activation='relu', input_shape=(train_grayscale.shape[1], train_grayscale.shape[2])))
-    model.add(layers.Conv1D(64, 3, 2, activation='relu'))
-    model.add(layers.Conv1D(64, 3, 2, activation='relu'))
-
-    model.add(layers.Flatten())
-    model.add(layers.Dense(64, activation='relu'))
-    model.add(layers.Dense(400))
+    # train_grayscale = train_grayscale[newaxis, ...]
+    # test_grayscale = test_grayscale[newaxis, ...]
 
     print(train_grayscale.shape)
     print(train_rgb_labels.shape)
     print(test_grayscale.shape)
     print(test_rgb_labels.shape)
 
+    # One Hot Encoding
+    train_rgb_labels = np_utils.to_categorical(train_rgb_labels)
+    test_rgb_labels = np_utils.to_categorical(test_rgb_labels)
+
+    print(test_grayscale)
+    print(test_rgb_labels)
+    print(test_rgb_labels.shape)
+
+    model = models.Sequential()
+    model.add(layers.Dense(8, input_dim=1, activation='relu'))
+    model.add(layers.Dense(8, activation='relu'))
+    # model.add(layers.Dense(8, activation='relu'))
+    model.add(layers.Dense(5, activation='softmax'))
+
+    # model.add(layers.Conv1D(2, 3, 2, activation='relu', input_shape=(train_grayscale.shape[1], train_grayscale.shape[2])))
+    # model.add(layers.Conv1D(2, 3, 2, activation='relu', input_shape=(None, 1)))
+    #
+    # model.add(layers.Conv1D(64, 3, 2, activation='relu'))
+    # model.add(layers.Conv1D(64, 3, 2, activation='relu'))
+    #
+    # model.add(layers.Flatten())
+    # model.add(layers.Dense(64, activation='relu'))
+    # model.add(layers.Dense(400))
+
+
+
     # Compile keras model
-    model.compile(optimizer=tf.keras.optimizers.SGD(learning_rate=0.00003),
+    model.compile(optimizer=tf.keras.optimizers.SGD(learning_rate=0.001),
                   loss=tf.keras.losses.CategoricalCrossentropy(),
                   metrics=['accuracy'])
 
