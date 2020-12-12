@@ -65,7 +65,7 @@ def cluster_pixels(rgb: np.array) -> Tuple[np.array, np.array]:
     print("initial centroids", centroids)
 
     # Recalculate centroid 10 times
-    for i in range(5):
+    for i in range(10):
         centroids = calculate_new_centroids(centroids, flattened_rgb)
         print("Iteration: ", i)
         print(centroids)
@@ -528,8 +528,8 @@ def generate_regression_equations(rgb: np.array, gray: np.array):
 
     return (wr, br), (wg, bg), (wb, bb)
 
-def run_advanced_agent(representative_color_labels: np.array, rgb: np.array, representative_colors):
-    train_grayscale, test_grayscale, train_rgb_labels, test_rgb_labels = train_test_split(rgb, representative_color_labels, test_size=0.2,
+def run_advanced_agent(gray: np.array, rgb: np.array, representative_color_labels: np.array, grayscale: np.array, representative_colors):
+    train_grayscale, test_grayscale, train_rgb_labels, test_rgb_labels = train_test_split(grayscale, representative_color_labels, test_size=0.2,
                                                                             random_state=1)
     train_grayscale = np.array(train_grayscale).flatten()
     train_rgb_labels = np.array(train_rgb_labels).flatten()
@@ -555,7 +555,6 @@ def run_advanced_agent(representative_color_labels: np.array, rgb: np.array, rep
     model = models.Sequential()
     model.add(layers.Dense(8, input_dim=1, activation='relu'))
     model.add(layers.Dense(8, activation='relu'))
-    # model.add(layers.Dense(8, activation='relu'))
     model.add(layers.Dense(5, activation='softmax'))
 
     # model.add(layers.Conv1D(2, 3, 2, activation='relu', input_shape=(train_grayscale.shape[1], train_grayscale.shape[2])))
@@ -581,6 +580,24 @@ def run_advanced_agent(representative_color_labels: np.array, rgb: np.array, rep
 
     # Evaluate model
     test_loss, test_acc = model.evaluate(test_grayscale, test_rgb_labels, verbose=2)
+
+    # Fill in right half
+    num_rows = rgb.shape[0]
+    num_cols = rgb.shape[1]
+
+    flattened_gray = gray.flatten()
+    predictions = model.predict(flattened_gray)
+    predictions = np.reshape(predictions, (num_rows, num_cols, -1))
+    np.set_printoptions(threshold=sys.maxsize)
+    # print(predictions)
+
+    for i in range(0, num_rows):
+        for j in range(int(num_cols / 2), num_cols):
+            color_index = np.argmax(predictions[i][j])
+            rgb[i][j] = representative_colors[color_index]
+
+    plt.imshow(rgb.astype('uint8'))
+    plt.show()
 
     # Save model
     # os.mkdir('model')
@@ -620,7 +637,7 @@ def main():
     # left_half_gray = np.delete(gray, [int(num_cols / 2), num_cols-1], axis=1)
     left_half_gray = np.delete(gray, np.s_[int(num_cols / 2): num_cols], axis=1)
     left_half_new_rgb_labels = np.delete(new_rgb_labels, np.s_[int(num_cols / 2): num_cols], axis=1)
-    run_advanced_agent(left_half_new_rgb_labels, left_half_gray, representative_colors)
+    run_advanced_agent(gray, rgb, left_half_new_rgb_labels, left_half_gray, representative_colors)
 
     # print(gray)
     # print(gray.shape)
