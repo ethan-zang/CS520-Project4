@@ -27,7 +27,7 @@ def retrieve_pixels() -> Tuple[np.array, np.array]:
 
     # Get file path to image
     root_dir = os.getcwd()
-    file_path = os.path.join(root_dir, 'image.jpg')
+    file_path = os.path.join(root_dir, 'flag.jpg')
 
     # Open image
     im = Image.open(file_path)
@@ -650,23 +650,25 @@ def main():
     plt.show()
 
     basic_rgb = np.copy(new_rgb)
+    improved_rgb = np.copy(new_rgb)
+    advanced_rgb = np.copy(new_rgb)
 
     basic_recolored = run_basic_agent(basic_rgb, gray, representative_colors, pixel_color_array)
-    # improved_recolored = run_improved_agent(rgb, gray, representative_colors, pixel_color_array)
+    improved_recolored = run_improved_agent(improved_rgb, gray, representative_colors, pixel_color_array)
 
     # left_half_gray = np.delete(gray, [int(num_cols / 2), num_cols-1], axis=1)
     left_half_gray = np.delete(gray, np.s_[int(num_cols / 2): num_cols], axis=1)
     left_half_new_rgb_labels = np.delete(new_rgb_labels, np.s_[int(num_cols / 2): num_cols], axis=1)
-    # advanced_recolored = run_advanced_agent(gray, rgb, left_half_new_rgb_labels, left_half_gray, representative_colors)
+    advanced_recolored = run_advanced_agent(gray, advanced_rgb, left_half_new_rgb_labels, left_half_gray, representative_colors)
 
     basic_accuracy = calculate_accuracy(new_rgb, basic_recolored)
     print("Basic recoloring accuracy: ", basic_accuracy)
 
-    # improved_accuracy = calculate_accuracy(new_rgb, improved_recolored)
-    # print("Improved recoloring accuracy: ", improved_accuracy)
+    improved_accuracy = calculate_accuracy(new_rgb, improved_recolored)
+    print("Improved recoloring accuracy: ", improved_accuracy)
 
-    # advanced_accuracy = calculate_accuracy(new_rgb, advanced_recolored)
-    # print("Advanced recoloring accuracy: ", advanced_accuracy)
+    advanced_accuracy = calculate_accuracy(new_rgb, advanced_recolored)
+    print("Advanced recoloring accuracy: ", advanced_accuracy)
 
     # print(gray)
     # print(gray.shape)
