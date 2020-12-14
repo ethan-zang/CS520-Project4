@@ -27,7 +27,7 @@ def retrieve_pixels() -> Tuple[np.array, np.array]:
 
     # Get file path to image
     root_dir = os.getcwd()
-    file_path = os.path.join(root_dir, 'image.jpg')
+    file_path = os.path.join(root_dir, 'flag.jpg')
 
     # Open image
     im = Image.open(file_path)
@@ -406,15 +406,15 @@ def color_right_side(gray: np.array, new_rgb: np.array, representative_colors: n
     return new_rgb
 
 
-def run_basic_agent(new_rgb: np.array, gray: np.array, representative_colors: np.array, pixel_color_array: np.array):
+def run_basic_agent(new_rgb: np.array, gray: np.array, representative_colors: np.array, pixel_color_array: np.array) -> np.array:
     # Color right hand side
     newest_rgb = color_right_side(gray, new_rgb, representative_colors, pixel_color_array)
     plt.imshow(newest_rgb.astype('uint8'))
     plt.show()
     print("Done with basic")
+    return newest_rgb
 
-
-def run_improved_agent(rgb: np.array, gray: np.array, representative_colors, pixel_color_array):
+def run_improved_agent(rgb: np.array, gray: np.array, representative_colors, pixel_color_array) -> np.array:
     red_equation, green_equation, blue_equation = generate_regression_equations(rgb, gray)
 
     num_rows = rgb.shape[0]
@@ -436,6 +436,8 @@ def run_improved_agent(rgb: np.array, gray: np.array, representative_colors, pix
 
     plt.imshow(rgb.astype('uint8'))
     plt.show()
+
+    return rgb
 
 
 def map_to_closest_color(red: int, green: int, blue: int, representative_colors: np.array):
@@ -528,7 +530,7 @@ def generate_regression_equations(rgb: np.array, gray: np.array):
 
     return (wr, br), (wg, bg), (wb, bb)
 
-def run_advanced_agent(gray: np.array, rgb: np.array, representative_color_labels: np.array, grayscale: np.array, representative_colors):
+def run_advanced_agent(gray: np.array, rgb: np.array, representative_color_labels: np.array, grayscale: np.array, representative_colors) -> np.array:
     train_grayscale, test_grayscale, train_rgb_labels, test_rgb_labels = train_test_split(grayscale, representative_color_labels, test_size=0.2,
                                                                             random_state=1)
     train_grayscale = np.array(train_grayscale).flatten()
@@ -567,8 +569,6 @@ def run_advanced_agent(gray: np.array, rgb: np.array, representative_color_label
     # model.add(layers.Dense(64, activation='relu'))
     # model.add(layers.Dense(400))
 
-
-
     # Compile keras model
     model.compile(optimizer=tf.keras.optimizers.SGD(learning_rate=0.001),
                   loss=tf.keras.losses.CategoricalCrossentropy(),
@@ -599,9 +599,27 @@ def run_advanced_agent(gray: np.array, rgb: np.array, representative_color_label
     plt.imshow(rgb.astype('uint8'))
     plt.show()
 
+    return rgb
+
     # Save model
     # os.mkdir('model')
     # model.save('model/trained_cnn_model', overwrite=True)
+
+
+def calculate_accuracy(base: np.array, recolored: np.array) -> float:
+    rows = base.shape[0]
+    cols = base.shape[1]
+    counted_cells = 0
+    correctly_colored = 0
+
+    for i in range (1,rows-1):
+        for j in range(int(cols/2), cols-1):
+            if np.array_equal(base[i][j], recolored[i][j]):
+                correctly_colored += 1
+            counted_cells += 1
+
+    accuracy = correctly_colored/counted_cells
+    return accuracy
 
 
 def main():
@@ -619,7 +637,7 @@ def main():
 
     # Fill in left half of new_rgb with new colors
     for i in range(num_rows):
-        for j in range(0, int(num_cols / 2)):
+        for j in range(num_cols):
             color_index = int(pixel_color_array[(i * num_cols + j)][3])
             # print(color_index)
             new_rgb[i][j] = representative_colors[color_index]
@@ -631,13 +649,26 @@ def main():
     plt.imshow(new_rgb.astype('uint8'))
     plt.show()
 
-    # run_basic_agent(new_rgb, gray, representative_colors, pixel_color_array)
-    # run_improved_agent(rgb, gray, representative_colors, pixel_color_array)
+    basic_rgb = np.copy(new_rgb)
+    improved_rgb = np.copy(new_rgb)
+    advanced_rgb = np.copy(new_rgb)
+
+    basic_recolored = run_basic_agent(basic_rgb, gray, representative_colors, pixel_color_array)
+    improved_recolored = run_improved_agent(improved_rgb, gray, representative_colors, pixel_color_array)
 
     # left_half_gray = np.delete(gray, [int(num_cols / 2), num_cols-1], axis=1)
     left_half_gray = np.delete(gray, np.s_[int(num_cols / 2): num_cols], axis=1)
     left_half_new_rgb_labels = np.delete(new_rgb_labels, np.s_[int(num_cols / 2): num_cols], axis=1)
-    run_advanced_agent(gray, rgb, left_half_new_rgb_labels, left_half_gray, representative_colors)
+    advanced_recolored = run_advanced_agent(gray, advanced_rgb, left_half_new_rgb_labels, left_half_gray, representative_colors)
+
+    basic_accuracy = calculate_accuracy(new_rgb, basic_recolored)
+    print("Basic recoloring accuracy: ", basic_accuracy)
+
+    improved_accuracy = calculate_accuracy(new_rgb, improved_recolored)
+    print("Improved recoloring accuracy: ", improved_accuracy)
+
+    advanced_accuracy = calculate_accuracy(new_rgb, advanced_recolored)
+    print("Advanced recoloring accuracy: ", advanced_accuracy)
 
     # print(gray)
     # print(gray.shape)
